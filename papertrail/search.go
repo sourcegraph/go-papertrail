@@ -116,15 +116,3 @@ func (c *Client) Search(opt SearchOptions) (*SearchResponse, *http.Response, err
 
 	return searchResp, resp, err
 }
-
-func hackConvertToEquivUnixTimeSeconds(t *time.Time) {
-	// Papertrail's HTTP API expects the min_time and max_time URL querystring
-	// parameters to be in Unix time (seconds since epoch). But go-querystring
-	// encodes fields with the "unix" parameter into nanoseconds since epoch
-	// (not seconds).
-	//
-	// This function hackily allows us to use go-querystring's encoding. It sets
-	// t to the time that is N nanoseconds after the epoch, where N is the
-	// seconds since the epoch of t.
-	//	sec := t.Unix() / time.Nanosecond
-}
