@@ -12,9 +12,11 @@ import (
 )
 
 var (
-	systemID = flag.String("system", "", "system ID (filter)")
-	groupID  = flag.String("group", "", "group ID (filter)")
-	follow   = flag.Bool("f", false, "follow logs (like 'tail -f')")
+	systemID   = flag.String("system", "", "system ID (filter)")
+	groupID    = flag.String("group", "", "group ID (filter)")
+	follow     = flag.Bool("f", false, "follow logs (like 'tail -f')")
+	minTimeAgo = flag.Duration("min-time-ago", 0, "show all logs after this time")
+	delay      = flag.Duration("delay", 2*time.Second, "poll delay")
 )
 
 func main() {
@@ -42,9 +44,18 @@ func main() {
 
 	c := papertrail.NewClient((&papertrail.TokenTransport{Token: token}).Client())
 
-	opt := &papertrail.SearchOptions{
-		Query: strings.Join(flag.Args(), " "),
+	opt := papertrail.SearchOptions{
+		SystemID: *systemID,
+		GroupID:  *groupID,
+		Query:    strings.Join(flag.Args(), " "),
 	}
+
+	if *minTimeAgo != 0 {
+		opt.MinTime = time.Now().In(time.UTC).Add(-1 * *minTimeAgo)
+	}
+
+	stopWhenEmpty := !*follow && (*minTimeAgo == 0)
+	polling := false
 
 	for {
 		searchResp, _, err := c.Search(opt)
@@ -52,9 +63,14 @@ func main() {
 			log.Fatal(err)
 		}
 
-		if len(searchResp.Events) == 0 && !*follow {
-			log.Println("No matching log events found.")
-			return
+		if len(searchResp.Events) == 0 {
+			if stopWhenEmpty {
+				return
+			} else {
+				// No more messages are immediately available, so now we'll just
+				// poll periodically.
+				polling = true
+			}
 		}
 		for _, e := range searchResp.Events {
 			var prog string
@@ -64,11 +80,10 @@ func main() {
 			fmt.Printf("%s %s %s %s: %s\n", e.ReceivedAt, e.SourceName, e.Facility, prog, e.Message)
 		}
 
-		if !*follow {
-			break
-		}
-
 		opt.MinID = searchResp.MaxID
-		time.Sleep(time.Millisecond * 500)
+
+		if polling {
+			time.Sleep(*delay)
+		}
 	}
 }

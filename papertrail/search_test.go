@@ -29,7 +29,7 @@ func TestClient_Search(t *testing.T) {
 		writeJSON(w, want)
 	})
 
-	opt := &SearchOptions{
+	opt := SearchOptions{
 		MinID: "1",
 		Query: "m",
 	}

@@ -16,9 +16,21 @@ type SearchOptions struct {
 	// Query filters the results to only those containing the query string.
 	Query string `url:"q,omitempty"`
 
+	// MaxID specifies that the response should only contain events whose ID is
+	// less than the specified ID. This is used when viewing older events.
+	MaxID string `url:"max_id,omitempty"`
+
 	// MinID specifies that the response should only contain events whose ID is
 	// greater than the specified ID.
 	MinID string `url:"min_id,omitempty"`
+
+	// MaxTime specifies that the response should only contain events before
+	// this time.
+	MaxTime time.Time `url:"max_time,unix,omitempty"`
+
+	// MinTime specifies that the response should only contain events after this
+	// time.
+	MinTime time.Time `url:"min_time,unix,omitempty"`
 }
 
 // A SearchResponse is the response from the Papertrail HTTP API's search
@@ -33,6 +45,10 @@ type SearchResponse struct {
 	// ReachedRecordLimit is whether Papertrail's per-request time lmit was
 	// reached before a full set of events was found.
 	ReachedRecordLimit bool `json:"reached_record_limit"`
+
+	// ReachedBeginning means that the entire searchable duration has been
+	// examined and no more matching messages are available.
+	ReachedBeginning bool `json:"reached_beginning"`
 
 	// MinTimeAt is the earliest event time presented.
 	MinTimeAt time.Time `json:"min_time_at"`
@@ -79,9 +95,12 @@ type Event struct {
 }
 
 // Search returns log events that match the parameters specified in opt.
-func (c *Client) Search(opt *SearchOptions) (*SearchResponse, *http.Response, error) {
-	if opt == nil {
-		opt = &SearchOptions{}
+func (c *Client) Search(opt SearchOptions) (*SearchResponse, *http.Response, error) {
+	if !opt.MaxTime.IsZero() {
+		opt.MaxTime = opt.MaxTime.In(time.UTC)
+	}
+	if !opt.MinTime.IsZero() {
+		opt.MinTime = opt.MinTime.In(time.UTC)
 	}
 
 	req, err := c.NewRequest("GET", "events/search.json", opt, nil)
@@ -96,4 +115,16 @@ func (c *Client) Search(opt *SearchOptions) (*SearchResponse, *http.Response, er
 	}
 
 	return searchResp, resp, err
+}
+
+func hackConvertToEquivUnixTimeSeconds(t *time.Time) {
+	// Papertrail's HTTP API expects the min_time and max_time URL querystring
+	// parameters to be in Unix time (seconds since epoch). But go-querystring
+	// encodes fields with the "unix" parameter into nanoseconds since epoch
+	// (not seconds).
+	//
+	// This function hackily allows us to use go-querystring's encoding. It sets
+	// t to the time that is N nanoseconds after the epoch, where N is the
+	// seconds since the epoch of t.
+	//	sec := t.Unix() / time.Nanosecond
 }
