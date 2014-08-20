@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sourcegraph/go-papertrail/papertrail"
 )
@@ -13,6 +14,7 @@ import (
 var (
 	systemID = flag.String("system", "", "system ID (filter)")
 	groupID  = flag.String("group", "", "group ID (filter)")
+	follow   = flag.Bool("f", false, "follow logs (like 'tail -f')")
 )
 
 func main() {
@@ -43,20 +45,30 @@ func main() {
 	opt := &papertrail.SearchOptions{
 		Query: strings.Join(flag.Args(), " "),
 	}
-	searchResp, _, err := c.Search(opt)
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	if len(searchResp.Events) == 0 {
-		log.Println("No matching log events found.")
-		return
-	}
-	for _, e := range searchResp.Events {
-		var prog string
-		if e.Program != nil {
-			prog = *e.Program
+	for {
+		searchResp, _, err := c.Search(opt)
+		if err != nil {
+			log.Fatal(err)
 		}
-		fmt.Printf("%s %s %s %s: %s\n", e.ReceivedAt, e.SourceName, e.Facility, prog, e.Message)
+
+		if len(searchResp.Events) == 0 && !*follow {
+			log.Println("No matching log events found.")
+			return
+		}
+		for _, e := range searchResp.Events {
+			var prog string
+			if e.Program != nil {
+				prog = *e.Program
+			}
+			fmt.Printf("%s %s %s %s: %s\n", e.ReceivedAt, e.SourceName, e.Facility, prog, e.Message)
+		}
+
+		if !*follow {
+			break
+		}
+
+		opt.MinID = searchResp.MaxID
+		time.Sleep(time.Millisecond * 500)
 	}
 }
