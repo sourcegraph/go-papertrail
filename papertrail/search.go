@@ -42,9 +42,9 @@ type SearchResponse struct {
 	// MaxID is the highest event ID presented.
 	MaxID string `json:"max_id"`
 
-	// ReachedRecordLimit is whether Papertrail's per-request time lmit was
+	// ReachedTimeLimit is whether Papertrail's per-request time lmit was
 	// reached before a full set of events was found.
-	ReachedRecordLimit bool `json:"reached_record_limit"`
+	ReachedTimeLimit bool `json:"reached_time_limit"`
 
 	// ReachedBeginning means that the entire searchable duration has been
 	// examined and no more matching messages are available.
