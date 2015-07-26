@@ -37,7 +37,7 @@ func main() {
 
 	token, err := papertrail.ReadToken()
 	if err == papertrail.ErrNoTokenFound {
-		log.Fatal("No Papertrail API token found; exiting.\n\npapertrail-go requires a valid Papertrail API token (which you can obtain from https://papertrailapp.com/user/edit) to be set in the PAPERTRAIL_TOKEN environment variable or in ~/.papertrail.yml (in the format `token: MYTOKEN`).")
+		log.Fatal("No Papertrail API token found; exiting.\n\npapertrail-go requires a valid Papertrail API token (which you can obtain from https://papertrailapp.com/user/edit) to be set in the PAPERTRAIL_API_TOKEN environment variable or in ~/.papertrail.yml (in the format `token: MYTOKEN`).")
 	} else if err != nil {
 		log.Fatal(err)
 	}
